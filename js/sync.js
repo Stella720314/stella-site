@@ -107,7 +107,7 @@
 
   // ---------- 部署前可填（也可留空） ----------
   // 与 Cloudflare 后台 env SYNC_TOKEN 保持一致；留空则两端都不校验（数据仍加密）
-  const SYNC_TOKEN = "";
+  const SYNC_TOKEN = "zx2GbssGaZGZfKabKxknTM3Y2NXnt3ZGX2z30ZOVm3BpsnBaHuwqUQNgrBvQfcqB";
   const SYNC_ENDPOINT = "/sync";
 
   /* ---------------- crypto ---------------- */
