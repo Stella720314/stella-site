@@ -1,8 +1,6 @@
-# Cloudflare Pages Functions 配置
-# 部署时自动绑定 KV 和设置 SYNC_TOKEN，无需在 UI 里手动点 Add Binding
-name = "stella-site"
+# Cloudflare Pages 配置（通过 Git 部署时自动读取）
+# 只需保留 KV 绑定、环境变量、输出目录；不要写 name 字段，否则会被当成 Worker 项目
 pages_build_output_dir = "."
-compatibility_date = "2026-08-01"
 
 [[kv_namespaces]]
 binding = "STELLA_KV"
