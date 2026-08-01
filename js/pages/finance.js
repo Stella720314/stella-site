@@ -44,7 +44,7 @@
     function renderGift() {
       let arr = S.listGet("gift");
       const sort = root.querySelector("#gift-sort").value;
-      arr = arr.slice().sort((a,b)=> sort==="amount" ? Math.abs(b.amount)-Math.abs(a.amount) : (b.date+a.at).localeCompare(a.date+a.at));
+      arr = arr.slice().sort((a,b)=> sort==="amount" ? Math.abs(b.amount)-Math.abs(a.amount) : (b.at ?? 0) - (a.at ?? 0));
       root.querySelector("#gift-list").innerHTML = arr.length ? `
         <div class="gift-list gift-scroll">
           ${arr.map(r=>`
