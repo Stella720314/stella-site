@@ -46,7 +46,7 @@
       const sort = root.querySelector("#gift-sort").value;
       arr = arr.slice().sort((a,b)=> sort==="amount" ? Math.abs(b.amount)-Math.abs(a.amount) : (b.date+a.at).localeCompare(a.date+a.at));
       root.querySelector("#gift-list").innerHTML = arr.length ? `
-        <div class="gift-list">
+        <div class="gift-list gift-scroll">
           ${arr.map(r=>`
             <div class="item" style="flex-direction:column;align-items:stretch;gap:6px;padding:12px 14px;margin-bottom:8px;border-radius:14px">
               <div style="display:flex;align-items:center;gap:10px">

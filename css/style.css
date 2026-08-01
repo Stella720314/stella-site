@@ -524,6 +524,12 @@ label.field { display: block; font-size: 12px; color: var(--text-2); margin: 10p
 /* 时间线滚动容器：篇幅过长时右侧滚动条上下查看 */
 .tl-scroll { max-height: 58vh; overflow-y: auto; overflow-x: hidden; padding-right: 6px; margin-top: 4px; }
 
+/* 随礼列表：约展示 4 条记录，超出后右侧滚动条上下滑动，控制页面篇幅 */
+.gift-scroll { max-height: 340px; overflow-y: auto; overflow-x: hidden; padding-right: 6px; margin-top: 2px; }
+.gift-scroll::-webkit-scrollbar { width: 8px; }
+.gift-scroll::-webkit-scrollbar-thumb { background: var(--line); border-radius: 8px; }
+.gift-scroll::-webkit-scrollbar-track { background: transparent; }
+
 /* 顶部汉堡按钮（移动端显示） */
 .menu-btn { display: none; }
 
