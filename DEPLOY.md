@@ -71,15 +71,21 @@ git push -u origin main
 3. 按提示登录 Cloudflare 账号即可部署。
 
 ## 四、绑定 KV + 设置令牌（关键两步）
-在刚创建的 Pages 项目里：
-1. **Settings → Functions → KV namespace bindings**：
-   - Variable name 填 **`STELLA_KV`**，绑定到第二步创建的 namespace。
-2. **Settings → Environment variables（Production）**：
-   - 新增 `SYNC_TOKEN`，值填**一段你自己生成的随机长串**（如用 https://randomkeygen.com 生成）。
-   - ⚠️ 同时把**同一个值**填进本包 `js/sync.js` 顶部的 `const SYNC_TOKEN = "";`（留空则两端都不校验，数据仍加密，仅少一层访问控制）。
-   - 如果两边都留空：也能用，靠"加密 +  obscure 域名"兜底。
+在刚创建的 Pages 项目里（**注意：项目必须保持标准 Pages 模式，不要往仓库里加 `wrangler.toml`**，见下方「⚠️ 重要坑」）：
+1. **Settings → Bindings**（左侧菜单，不是 Functions）：
+   - 点 **Add binding** → 类型选 **KV namespace**
+   - Variable name 填 **`STELLA_KV`**，绑定到第二步创建的 namespace（如 `stella-data`）
+   - 保存。若列表里没出现，硬刷新（Ctrl+F5）或切菜单再回来看。
+2. **SYNC_TOKEN（可选）**：本包 `js/sync.js` 已内置固定令牌值，Worker 端只有在 `env.SYNC_TOKEN` 被设置时才会校验。
+   - 想开启令牌校验：去 **Settings → Environment variables** 加 `SYNC_TOKEN`，值填
+     `zx2GbssGaZGZfKabKxknTM3Y2NXnt3ZGX2z30ZOVm3BpsnBaHuwqUQNgrBvQfcqB`
+   - 不设置也能用：数据依然是端到端加密，仅少一层访问控制，个人站点风险极低。
 
-> KV 绑定名必须叫 `STELLA_KV`，令牌变量必须叫 `SYNC_TOKEN`，因为同步代码就是按这两个名字读的。
+> KV 绑定名必须叫 `STELLA_KV`（同步代码按此名读取）。
+
+### ⚠️ 重要坑：不要往仓库加 `wrangler.toml`
+`wrangler.toml` 一旦出现在 Git 仓库里，Cloudflare 会改用 **`wrangler deploy`（Worker 模式）** 部署，而不是标准 Pages 部署。Worker 模式要求有入口脚本或 assets 配置，与本站「Pages + `/functions`」结构不兼容，会报 `Missing entry-point to Worker script or to assets directory`，构建失败；同时 Dashboard 的 Pages 绑定也会不生效。
+**结论**：保持仓库里没有 `wrangler.toml`，KV 绑定一律在 Dashboard 的 **Settings → Bindings** 里做。
 
 ## 五、开启同步（在站点里操作）
 1. 打开你的 `xxx.pages.dev` 站点。
