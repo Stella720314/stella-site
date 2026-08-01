@@ -1,0 +1,12 @@
+# Cloudflare Pages Functions 配置
+# 部署时自动绑定 KV 和设置 SYNC_TOKEN，无需在 UI 里手动点 Add Binding
+name = "stella-site"
+pages_build_output_dir = "."
+compatibility_date = "2026-08-01"
+
+[[kv_namespaces]]
+binding = "STELLA_KV"
+id = "2d36b84e8b114ea6b01c763909c2c931"
+
+[vars]
+SYNC_TOKEN = "zx2GbssGaZGZfKabKxknTM3Y2NXnt3ZGX2z30ZOVm3BpsnBaHuwqUQNgrBvQfcqB"
