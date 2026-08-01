@@ -242,6 +242,9 @@
     const localCols = snapshotLocal();
     const merged = mergeCollections(localCols, archive.collections || {}, archive.tombstones || []);
     applyToLocal(merged);
+    // 纪念日事件是衍生数据：云端合并后，必须根据 canonical 列表（anniversary_birthday/special）重新生成 events，
+    // 否则云端残留的过期 events 会在首页迷你日历上继续显示橙色标记。
+    if (App.Anniversary && App.Anniversary.syncCalendar) App.Anniversary.syncCalendar();
   }
 
   async function push() {

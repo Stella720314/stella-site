@@ -111,6 +111,8 @@
 
     /* 日历 */
     const calMount = root.querySelector("#cal-mount");
+    // 确保首页迷你日历与纪念日 canonical 数据一致（删除纪念日记录后，events 中的过期橙色标记会被清掉）
+    if (App.Anniversary && App.Anniversary.syncCalendar) App.Anniversary.syncCalendar();
     App.Calendar.render(calMount, { onSelect: (dk, after) => App.Calendar.editEvent(dk, after) });
     root.querySelector("#cal-tag").textContent = "月视图";
 
