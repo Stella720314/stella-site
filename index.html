@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stella🎀的美好生活记录</title>
+  <link rel="icon" type="image/jpeg" href="assets/stella-avatar.jpg">
+  <link rel="apple-touch-icon" href="assets/stella-avatar.jpg">
+  <link rel="stylesheet" href="css/style.css">
+<script src="https://beacon.cdn.qq.com/sdk/4.5.9/beacon_web.min.js"></script>
+<script>
+(function(){
+  try{
+    var beacon=new BeaconAction({
+      appkey:'0WEB06U85YBSLJNL',
+      versionCode:'1.0.0',
+      channelID:'share',
+      delay:1000,
+      sessionDuration:30*60*1000,
+      isOversea:false,
+      needReportRqdEvent:false
+    });
+    beacon.onDirectUserAction('preview_page_view',{
+      'url':location.href,
+      'referrer':document.referrer,
+      'title':document.title,
+      'sandbox_id':'a91281ed38aa4f169191e119b68adf82'
+    });
+  }catch(e){}
+})();
+</script></head>
+<body>
+  <!-- 悬浮光斑 -->
+  <div class="ambient"><span></span><span></span><span></span></div>
+
+  <div class="app">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <img class="avatar" src="assets/stella-avatar.jpg" alt="Stella">
+        <div class="txt">Stella<span class="bow">🎀</span></div>
+      </div>
+      <nav class="nav" id="nav"></nav>
+      <div class="collapse-btn" id="collapse">⟨ 收起</div>
+    </aside>
+
+    <!-- 主区 -->
+    <main class="main">
+      <header class="topbar">
+        <button class="menu-btn" id="menu-btn" aria-label="菜单">☰</button>
+        <div class="page-title" id="page-title">Stella🎀的美好生活记录</div>
+        <div class="right">
+          <span class="clock" id="clock"></span>
+          <div class="theme-toggle" id="theme-toggle" title="切换浅色/深色护眼"><div class="knob">☀️</div></div>
+        </div>
+      </header>
+      <div class="content" id="content"></div>
+      <!-- 移动端侧边栏遮罩（置于 .app 内部，确保抽屉层级高于遮罩） -->
+      <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+    </main>
+  </div>
+
+  <!-- 脚本（顺序加载） -->
+  <script>try{var t=localStorage.getItem('stella:theme');if(t==='dark')document.body.classList.add('theme-dark');}catch(e){}</script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/pages/home.js"></script>
+  <script src="js/pages/fitness.js"></script>
+  <script src="js/pages/sleep.js"></script>
+  <script src="js/pages/english.js"></script>
+  <script src="js/pages/whisper.js"></script>
+  <script src="js/pages/finance.js"></script>
+  <script src="js/pages/period.js"></script>
+  <script src="js/pages/medical.js"></script>
+  <script src="js/pages/anniversary.js"></script>
+  <script src="js/sync.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
