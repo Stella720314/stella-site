@@ -78,17 +78,19 @@
   tick(); setInterval(tick, 1000);
 
   // 路由
-  function route() {
+  function route(keepScroll) {
     let key = (location.hash || "#/home").replace("#/", "");
     if (!Pages[key]) key = "home";
     const m = MENU.find(x => x.key === key) || MENU[0];
     pageTitle.innerHTML = key === "home" ? `Stella🎀的美好生活记录` : `${m.emoji} ${m.name}`;
     navEl.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.key === key));
-    content.scrollTop = 0;
+    const prevTop = keepScroll ? content.scrollTop : 0;
     try { Pages[key](content); }
     catch (err) { content.innerHTML = `<div class="empty">页面加载出错：${err.message}</div>`; console.error(err); }
+    content.scrollTop = prevTop; // 同步刷新时保留滚动位置，避免「滑动回顶部」
   }
   window.addEventListener("hashchange", route);
-  App.rerender = route; // 供同步模块在 hydrate 后重渲染
+  App.rerender = () => route(true);     // 同步刷新：保留滚动位置
+  App.rerenderTop = () => route(false); // 彻底刷新：回到顶部（解锁/导入后使用）
   if (!location.hash) location.hash = "#/home"; else route();
 })();

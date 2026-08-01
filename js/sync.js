@@ -169,6 +169,7 @@
   let dirty = false;
   let pushTimer = null;
   let listening = false;
+  let syncing = false;    // 同步进行中：屏蔽内部写入触发的 markDirty，避免自激循环
   let saltBytes = null;   // 全局统一盐（优先取自云端信封）
   let passphrase = null;  // 仅内存保存，绝不落盘
 
@@ -261,22 +262,24 @@
 
   // 一次完整同步：先拉（取云端最新）→ 合并进本地 → 上传（全量合并结果）→ 本地清理
   async function syncNow() {
-    if (!unlocked) return;
+    if (!unlocked || syncing) return;
+    syncing = true;
     try {
       const cloud = await pull();
       if (cloud) await hydrateFromCloud(cloud);
       await push();
       if (App.retention) App.retention.run(); // 仅在本地修剪视图，云端不受影响
-      App.rerender && App.rerender();
       updateStatus();
     } catch (e) {
       App.toast("同步失败：" + (e && e.message ? e.message : e), "⚠️");
+    } finally {
+      syncing = false;
     }
   }
 
   /* ---------------- 变更监听（防抖推送） ---------------- */
   function markDirty() {
-    if (!unlocked) return;
+    if (syncing || !unlocked) return;
     dirty = true;
     if (pushTimer) clearTimeout(pushTimer);
     pushTimer = setTimeout(() => { dirty = false; syncNow(); }, 1500);
@@ -322,6 +325,7 @@
     App.raw.set("__sync_meta", { salt: b64(saltBytes), deviceId, updatedAt: Date.now() });
     hookStore();
     await syncNow();
+    App.rerenderTop && App.rerenderTop(); // 解锁后刷新页面以显示云端数据（回到顶部）
     App.toast("云同步已启用 ☁️", "☁️");
     updateStatus();
   }
@@ -343,6 +347,7 @@
     if (remember) { try { sessionStorage.setItem("stella:__pass", pass); } catch (e) {} }
     hookStore();
     await syncNow();
+    App.rerenderTop && App.rerenderTop(); // 解锁后刷新页面以显示云端数据（回到顶部）
     updateStatus();
     return true;
   }
@@ -372,7 +377,7 @@
         const cols = data.collections || {};
         applyToLocal(migrate({ v: data.v || 1, collections: cols }).collections);
         App.raw.set("__tombstones", []);
-        App.rerender && App.rerender();
+        App.rerenderTop && App.rerenderTop();
         if (unlocked) syncNow();
         App.toast("已导入，正在同步… 📥", "📥");
       } catch (e) { App.toast("导入失败：" + (e && e.message ? e.message : e), "⚠️"); }
