@@ -12,9 +12,9 @@
   --blue:      #6fb0e6;   /* 晴空蓝 */
   --blue-deep: #4f8fd1;
   --peach:     #f3a98c;   /* 蜜桃 */
-  --mint:      #7ccdb0;   /* 薄荷绿 */
-  --mint-blue: #8ee3e0;   /* 薄荷蓝 */
-  --mint-blue-deep: #5fcfcb;
+  --mint:      #9dd9c4;   /* 柔和薄荷绿 */
+  --mint-blue: #b0e8e4;   /* 柔和薄荷蓝 */
+  --mint-blue-deep: #88d8d3;
   --gold:      #e6b86a;   /* 暖金 */
   --sage:      #9caf9c;
   --sage-deep: #7d947f;
@@ -23,8 +23,8 @@
   --rose:      #c9a9a6;
   --cream:     #efe7da;
   /* 渐变主色（粉→紫→薄荷蓝→蓝） */
-  --grad: linear-gradient(135deg, var(--pink), var(--purple) 40%, var(--mint-blue) 78%, var(--blue));
-  --grad-soft: linear-gradient(135deg, rgba(239,143,180,.26), rgba(155,135,214,.24) 40%, rgba(142,227,224,.24) 78%, rgba(111,176,230,.24));
+  --grad: linear-gradient(135deg, var(--pink), var(--purple) 44%, var(--mint-blue) 82%, var(--blue));
+  --grad-soft: linear-gradient(135deg, rgba(239,143,180,.24), rgba(155,135,214,.22) 44%, rgba(176,232,228,.22) 82%, rgba(111,176,230,.22));
 
   /* 浅色护眼（粉·紫·薄荷蓝梦幻渐变） */
   --bg-1: #f0d8e8;   /* 樱粉 */
@@ -42,14 +42,14 @@
   --input-border:rgba(150, 125, 180, 0.26);
   --spot-1: rgba(239,143,180,0.50);
   --spot-2: rgba(155,135,214,0.46);
-  --spot-3: rgba(142,227,224,0.48);
+  --spot-3: rgba(176,232,228,0.46);
   --done:   #4fae8c;
   --warn:   #e08a5a;
   --danger:#e0627a;
   --chip-bg: rgba(255,255,255,0.52);
   --drawer-bg: rgba(252, 246, 250, 0.95);
   /* 日历标记背景（与整体粉紫蓝统一） */
-  --mark-holiday: rgba(142,227,224,.36);     /* 节假日·薄荷蓝 */
+  --mark-holiday: rgba(176,232,228,.36);     /* 节假日·薄荷蓝 */
   --mark-makeup:  rgba(155,135,214,.34);     /* 调休·梦幻紫 */
   --mark-event:   rgba(239,143,180,.36);     /* 重要安排·樱粉 */
   --mark-anniversary: rgba(243,169,140,.42); /* 纪念日·蜜桃橙 */
@@ -64,9 +64,9 @@
 body.theme-dark {
   /* 深色护眼：深紫蓝、薄荷蓝点缀 */
   --pink: #ef8fb4; --pink-deep:#d96a9c; --purple:#9b87d6; --purple-deep:#7a64c4;
-  --blue:#6fb0e6; --blue-deep:#4f8fd1; --peach:#f3a98c; --mint:#7ccdb0; --mint-blue:#6bcfc9; --mint-blue-deep:#4db5af; --gold:#e6b86a;
-  --grad: linear-gradient(135deg, var(--pink-deep), var(--purple-deep) 40%, var(--mint-blue-deep) 78%, var(--blue-deep));
-  --grad-soft: linear-gradient(135deg, rgba(217,106,156,.30), rgba(122,100,196,.26) 40%, rgba(93,207,203,.26) 78%, rgba(79,143,209,.30));
+  --blue:#6fb0e6; --blue-deep:#4f8fd1; --peach:#f3a98c; --mint:#9dd9c4; --mint-blue:#88d8d3; --mint-blue-deep:#6bcfc9; --gold:#e6b86a;
+  --grad: linear-gradient(135deg, var(--pink-deep), var(--purple-deep) 44%, var(--mint-blue-deep) 82%, var(--blue-deep));
+  --grad-soft: linear-gradient(135deg, rgba(217,106,156,.28), rgba(122,100,196,.24) 44%, rgba(107,207,201,.24) 82%, rgba(79,143,209,.28));
   --bg-1: #211a2c;
   --bg-2: #1d1c33;
   --bg-3: #182b30;
@@ -82,7 +82,7 @@ body.theme-dark {
   --input-border:rgba(255, 255, 255, 0.14);
   --spot-1: rgba(217,106,156,0.24);
   --spot-2: rgba(122,100,196,0.22);
-  --spot-3: rgba(93,207,203,0.24);
+  --spot-3: rgba(107,207,201,0.24);
   --done:   #6fd0a8;
   --warn:   #eaa074;
   --danger:#ee7d92;
@@ -234,7 +234,8 @@ body.theme-dark .theme-toggle .knob { left: 22px; background: linear-gradient(13
 }
 .btn:hover { transform: translateY(-1px); box-shadow: var(--card-shadow); }
 .btn:active { transform: translateY(0); }
-.btn.primary { background: var(--grad); color: #fff; border: none; }
+.btn.primary { background: var(--grad); color: #fff; border: 1px solid rgba(255,255,255,.42); box-shadow: 0 4px 14px rgba(142,110,170,.24), inset 0 1px 0 rgba(255,255,255,.28); }
+.btn.primary:hover { box-shadow: 0 6px 18px rgba(142,110,170,.30), inset 0 1px 0 rgba(255,255,255,.32); }
 .btn.ghost { background: transparent; }
 .btn.danger { color: var(--danger); border-color: rgba(201,122,122,.4); }
 .btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 9px; }
@@ -250,7 +251,7 @@ input[type="date"], input[type="month"] {
   -webkit-appearance: none; appearance: none;
 }
 .input:focus, .textarea:focus, select:focus, textarea:focus {
-  border-color: var(--mint-blue); box-shadow: 0 0 0 3px rgba(142,227,224,.22);
+  border-color: var(--mint-blue); box-shadow: 0 0 0 3px rgba(176,232,228,.24);
 }
 .textarea { resize: vertical; min-height: 70px; line-height: 1.6; }
 label.field { display: block; font-size: 12px; color: var(--text-2); margin: 10px 0 5px; }
@@ -269,7 +270,7 @@ label.field { display: block; font-size: 12px; color: var(--text-2); margin: 10p
   color: var(--text-2); transition: all .18s; user-select: none;
 }
 .chip:hover { transform: translateY(-1px); }
-.chip.active { background: var(--grad); color: #fff; border-color: transparent; }
+.chip.active { background: var(--grad); color: #fff; border-color: rgba(255,255,255,.42); box-shadow: 0 4px 12px rgba(142,110,170,.22); }
 .chip.sel { outline: 2px solid var(--sage); outline-offset: 1px; }
 .chip { position: relative; }
 .tag-x {
@@ -418,7 +419,7 @@ label.field { display: block; font-size: 12px; color: var(--text-2); margin: 10p
 .checkin-item .ci-name { font-weight: 600; }
 .checkin-item .ci-note { font-size: 12px; color: var(--text-soft); }
 .check-btn {
-  width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--mint-blue-deep); cursor: pointer;
+  width: 34px; height: 34px; border-radius: 50%; border: 2px solid var(--mint-blue); cursor: pointer;
   display: grid; place-items: center; color: transparent; transition: all .2s; flex: 0 0 34px; background: transparent;
 }
 .checkin-item.done .check-btn { background: var(--grad); color: #fff; border-color: transparent; }
@@ -612,7 +613,7 @@ label.field { display: block; font-size: 12px; color: var(--text-2); margin: 10p
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
-  background: linear-gradient(135deg, rgba(239,143,180,.18), rgba(155,135,214,.16) 40%, rgba(142,227,224,.18) 78%, rgba(111,176,230,.18));
+  background: linear-gradient(135deg, rgba(239,143,180,.16), rgba(155,135,214,.14) 44%, rgba(176,232,228,.16) 82%, rgba(111,176,230,.16));
   border: 1px solid rgba(255,255,255,.45);
   cursor: pointer;
   transition: transform .12s, box-shadow .2s;
