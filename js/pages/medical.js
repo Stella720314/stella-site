@@ -19,7 +19,7 @@
     function planText(p) {
       return `就医：${p.dept}${p.hospital ? " · " + p.hospital : ""}${p.note ? "\n" + p.note : ""}`;
     }
-    function syncCalendar(p) {
+    function syncOneCalendar(p) {
       // 未来未就诊计划同步到首页迷你日历（就医源，蓝色背景）
       if (p && !p.done && p.planDate >= D.today() && App.Calendar && App.Calendar.eventSet) {
         App.Calendar.eventSet(p.planDate, {
@@ -30,6 +30,19 @@
     }
     function unsyncCalendar(date) {
       if (App.Calendar && App.Calendar.eventRemoveSrc) App.Calendar.eventRemoveSrc(date, "medical");
+    }
+    function syncCalendar() {
+      // 全量重同步：先清理所有 medical 源事件，再把当前未完成的未来计划重新写入
+      // 这样删除/修改后回到首页，迷你日历一定与医疗记录数据一致
+      if (!App.Calendar) return;
+      const evs = App.Calendar.eventsAll ? App.Calendar.eventsAll() : {};
+      Object.keys(evs).forEach(dk => {
+        const ev = evs[dk];
+        const hasMedical = (ev && Array.isArray(ev.items) && ev.items.some(i => i._src === "medical"));
+        if (hasMedical) App.Calendar.eventRemoveSrc(dk, "medical");
+      });
+      const today = D.today();
+      S.listGet("medical_plan").forEach(p => { if (!p.done && p.planDate >= today) syncOneCalendar(p); });
     }
 
     function renderPlans() {
@@ -90,7 +103,7 @@
             const cur=arr.find(x=>x.id===id);
             if (oldDate && oldDate !== v.planDate) unsyncCalendar(oldDate);
             cur.dept=v.dept;cur.hospital=v.hospital;cur.note=v.note;cur.planDate=v.planDate;S.listUpdate("medical_plan",id,cur);
-            if (!cur.done) syncCalendar(cur);
+            if (!cur.done) syncOneCalendar(cur);
           } else {
             const rec={planDate:v.planDate,dept:v.dept,hospital:v.hospital,note:v.note,done:false};
             // 防止因网络/手误重复添加完全相同的数据
@@ -102,7 +115,7 @@
               !x.done
             );
             if (dup) { App.toast("已存在相同的就医计划，无需重复添加", "ℹ️"); return false; }
-            S.listAdd("medical_plan",rec); syncCalendar(rec);
+            S.listAdd("medical_plan",rec); syncOneCalendar(rec);
           }
           renderPlans(); App.toast(id?"已更新":"已添加计划","📋");}
       });
@@ -111,19 +124,17 @@
       const doneBtn=e.target.closest("[data-done]");
       const ed=e.target.closest("[data-edit]"),dl=e.target.closest("[data-del]");
       if(doneBtn){const arr=S.listGet("medical_plan");const i=arr.findIndex(p=>p.id===doneBtn.dataset.done);
-        if(i>=0){const p=arr[i]; p.done=!p.done;S.listSet("medical_plan",arr);renderPlans();
-          if (p.done) unsyncCalendar(p.planDate); else syncCalendar(p);
+        if(i>=0){const p=arr[i]; p.done=!p.done;S.listSet("medical_plan",arr);renderPlans(); syncCalendar();
           App.toast(p.done?"已标记为已完成 ✓":"已取消完成","✅");}}
       if(ed)editPlan(ed.dataset.edit);
       if(dl)App.confirm("删除该计划？",()=>{
-        const arr=S.listGet("medical_plan"); const p=arr.find(x=>x.id===dl.dataset.del);
-        if(p) unsyncCalendar(p.planDate);
-        S.listRemove("medical_plan",dl.dataset.del);renderPlans();App.toast("已删除","🗑️");
+        S.listRemove("medical_plan",dl.dataset.del); renderPlans(); syncCalendar(); App.toast("已删除","🗑️");
       });};
     renderPlans();
-    // 初始化时把未来计划同步一次到首页日历（兼容旧数据）
-    const today = D.today();
-    S.listGet("medical_plan").forEach(p => { if (!p.done && p.planDate >= today) syncCalendar(p); });
+    // 初始化时全量同步一次到首页日历（兼容旧数据/修复 stale 标记）
+    syncCalendar();
+    // 暴露给首页做兜底重同步
+    App.Medical = { syncCalendar };
   };
   function escapeHtml(s){return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));}
 })();

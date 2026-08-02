@@ -46,46 +46,21 @@
       const sort = root.querySelector("#gift-sort").value;
       arr = arr.slice().sort((a,b)=> sort==="amount" ? Math.abs(b.amount)-Math.abs(a.amount) : (b.at ?? 0) - (a.at ?? 0));
       root.querySelector("#gift-list").innerHTML = arr.length ? `
-        <div class="gift-list gift-scroll">
+        <div class="gift-grid gift-scroll">
           ${arr.map(r=>`
-            <div class="item" style="flex-direction:column;align-items:stretch;gap:6px;padding:12px 14px;margin-bottom:8px;border-radius:14px">
-              <div style="display:flex;align-items:center;gap:10px">
-                <button class="gift-person" data-detail="${r.id}" style="background:none;border:none;padding:0;font-size:15px;font-weight:700;color:var(--text);text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--text-2);text-underline-offset:3px">${escapeHtml(r.person)}</button>
-                <span class="spacer"></span>
-                <button class="btn sm icon" data-edit="${r.id}" title="编辑">✏️</button>
-                <button class="btn sm icon danger" data-del="${r.id}" title="删除">🗑️</button>
-              </div>
-              <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
-                <span class="muted" style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60%">${escapeHtml(r.reason)}</span>
-                <span style="font-size:15px;font-weight:800;color:${r.type==='in'?'var(--done)':'var(--danger)'};white-space:nowrap">${r.type==='in'?'+':'-'}${r.amount}</span>
-              </div>
+            <div class="gift-tile" data-edit="${r.id}" title="点击查看详情 / 编辑">
+              <div class="gift-tile-person">${escapeHtml(r.person)}</div>
+              <div class="gift-tile-amount" style="color:${r.type==='in'?'var(--done)':'var(--danger)'}">${r.type==='in'?'+':'-'}${r.amount}</div>
             </div>
           `).join("")}
         </div>` : `<div class="empty">还没有随礼记录</div>`;
     }
     root.querySelector("#gift-sort").onchange = renderGift;
     root.querySelector("#gift-add").onclick = () => editGift(null);
-    function openGiftDetail(id) {
-      const arr = S.listGet("gift"); const r = arr.find(x => x.id === id);
-      if (!r) return;
-      App.modal.open(`🎁 ${escapeHtml(r.person)} 的随礼详情`, `
-        <div style="display:grid;gap:10px">
-          <div class="item" style="justify-content:space-between;padding:10px 12px"><span class="muted">日期</span><span>${r.date}</span></div>
-          <div class="item" style="justify-content:space-between;padding:10px 12px"><span class="muted">对象</span><span>${escapeHtml(r.person)}</span></div>
-          <div class="item" style="justify-content:space-between;padding:10px 12px"><span class="muted">事由</span><span>${escapeHtml(r.reason)}</span></div>
-          <div class="item" style="justify-content:space-between;padding:10px 12px"><span class="muted">类型</span><span class="badge ${r.type==='in'?'ok':'warn'}">${r.type==='in'?'收入（收礼）':'支出（送礼）'}</span></div>
-          <div class="item" style="justify-content:space-between;padding:10px 12px"><span class="muted">金额</span><span style="font-weight:800;color:${r.type==='in'?'var(--done)':'var(--danger)'}">${r.type==='in'?'+':'-'}${r.amount}</span></div>
-          ${r.note ? `<div class="item" style="justify-content:space-between;padding:10px 12px;align-items:flex-start;gap:10px"><span class="muted">备注</span><span style="text-align:right;word-break:break-word">${escapeHtml(r.note)}</span></div>` : ''}
-        </div>
-      `, {
-        okText: "编辑",
-        cancelText: "关闭",
-        onOk(m){ App.modal.close(); setTimeout(()=>editGift(id),220); return false; }
-      });
-    }
     function editGift(id) {
       const arr = S.listGet("gift"); const r = id ? arr.find(x=>x.id===id) : { date:D.today(), person:"", reason:"", type:"out", amount:"", note:"" };
-      App.modal.open(id?"✏️ 编辑随礼记录":"＋ 添加随礼记录", `
+      const delBtn = id ? `<button class="btn danger" id="gift-del" style="margin-top:12px;width:100%">🗑️ 删除该记录</button>` : "";
+      App.modal.open(id?"🎁 随礼详情 / 编辑":"＋ 添加随礼记录", `
         <div class="row">
           <div class="grow">${App.dateInput("date", r.date, "日期")}</div>
           <div class="grow"><label class="field">类型</label>
@@ -97,19 +72,27 @@
           <div class="grow"><label class="field">金额</label><input class="input" type="number" name="amount" value="${r.amount??''}" placeholder="正数"></div>
           <div class="grow"><label class="field">备注</label><input class="input" name="note" value="${escapeHtml(r.note||'')}"></div>
         </div>
+        ${delBtn}
         `, {
         okText: id ? "保存" : "添加",
-        cancel: false,
+        cancelText: "关闭",
+        cancel: true,
+        onOpen(m){
+          const dbtn = m.querySelector("#gift-del");
+          if(dbtn) dbtn.onclick = () => {
+            App.confirm("确定删除该记录？", () => {
+              S.listRemove("gift", id); renderGift(); App.toast("已删除","🗑️"); App.modal.close();
+            });
+          };
+        },
         onOk(m){ const v=App.formVals(m); if(!v.person.trim()){App.toast("请填写对象","⚠️");return false;}
           const rec={date:v.date,person:v.person,reason:v.reason,type:v.type,amount:Math.abs(parseFloat(v.amount)||0),note:v.note,at:Date.now()};
           if(id)S.listUpdate("gift",id,rec);else S.listAdd("gift",rec); renderGift(); App.toast(id?"已更新":"已添加","🎁"); }
       });
     }
     root.querySelector("#gift-list").onclick = (e)=>{
-      const ed=e.target.closest("[data-edit]"),dl=e.target.closest("[data-del]"),dt=e.target.closest("[data-detail]");
+      const ed=e.target.closest("[data-edit]");
       if(ed) editGift(ed.dataset.edit);
-      if(dl) App.confirm("确定删除该记录？",()=>{S.listRemove("gift",dl.dataset.del);renderGift();App.toast("已删除","🗑️");});
-      if(dt){ e.stopPropagation(); openGiftDetail(dt.dataset.detail); }
     };
     renderGift();
 

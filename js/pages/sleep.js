@@ -61,6 +61,43 @@
     return { daysInMonth, okDays, ratio };
   }
 
+  // 根据打卡时间判断归属日期：00:00-11:59 归属前一天，12:00 及以后归属当天
+  function sleepDateForCheck(now = new Date()) {
+    const today = D.today();
+    return now.getHours() < 12 ? D.addDays(today, -1) : today;
+  }
+
+  // 自动打卡：若昨天在保留窗口内且还没有记录，标为熬夜（凌晨分界线）
+  function autoCheck() {
+    const yesterday = D.addDays(D.today(), -1);
+    if (yesterday < sleepCutoff()) return;
+    if (!S.val("sleep:" + yesterday, null)) {
+      S.setVal("sleep:" + yesterday, { time: "00:00", late: true, auto: true });
+    }
+  }
+
+  // 一次性迁移：把 00:00-11:59 的打卡从当天移到前一天（处理旧数据）
+  function migrateSleepDates() {
+    if (S.val("sleep_migrated_v1", false)) return;
+    const prefix = App.PREFIX + "sleep:";
+    Object.keys(localStorage).forEach(k => {
+      if (!k.startsWith(prefix)) return;
+      const dk = k.slice(prefix.length);
+      if (dk < sleepCutoff()) return;
+      const r = S.val("sleep:" + dk, null);
+      if (!r || !r.time) return;
+      const [h] = r.time.split(":").map(Number);
+      if (h < 12) {
+        const prev = D.addDays(dk, -1);
+        if (!S.val("sleep:" + prev, null)) {
+          S.setVal("sleep:" + prev, r);
+          S.setVal("sleep:" + dk, null);
+        }
+      }
+    });
+    S.setVal("sleep_migrated_v1", true);
+  }
+
   Pages.sleep = function (root) {
     root.innerHTML = `
       <div class="stack page-pad">
@@ -162,7 +199,8 @@
       const now = new Date();
       const t = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
       const late = toMin(t) > toMin(standard());
-      S.setVal("sleep:" + D.today(), { time: t, late });
+      const dk = sleepDateForCheck(now);
+      S.setVal("sleep:" + dk, { time: t, late });
       renderCal();
       App.toast(late ? "熬夜了，明天早点睡 😣" : "未熬夜，好棒 😊", late ? "😣" : "😊");
     }
@@ -258,6 +296,8 @@
     };
 
     purgeOld();
+    migrateSleepDates();
+    autoCheck();
     renderCal();
   };
 
