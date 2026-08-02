@@ -18,11 +18,11 @@
       <div class="stack page-pad">
         <!-- 体重追踪 -->
         <div class="card">
-          <h3 class="section-title">⚖️ 体重追踪 <span class="tag" id="wt-view-tag">周视图</span></h3>
+          <h3 class="section-title">⚖️ 体重追踪 <span class="tag" id="wt-view-tag">近7天</span></h3>
           <div class="row" style="margin-bottom:14px;align-items:flex-end;justify-content:flex-end">
             <div class="cal-nav">
-              <button class="chip active" data-wtview="week">周</button>
-              <button class="chip" data-wtview="month">月</button>
+              <button class="chip active" data-wtview="week">近7天</button>
+              <button class="chip" data-wtview="month">近1个月</button>
             </div>
           </div>
           <div class="row" style="margin-bottom:14px;align-items:flex-end">
@@ -94,17 +94,18 @@
           if (w.bed != null) bed.push({ label: D.md(k), value: w.bed });
         });
       } else {
-        const mon = D.mondayOf(base);
-        for (let i = 0; i < 7; i++) { const k = D.addDays(mon, i); const w = all[k];
-          if (w && w.morning != null) morn.push({ label: D.md(k), value: w.morning });
-          if (w && w.bed != null) bed.push({ label: D.md(k), value: w.bed });
-        }
+        const cutoff = D.addDays(base, -6);
+        Object.keys(all).filter(k => k >= cutoff && k <= base).sort().forEach(k => {
+          const w = all[k];
+          if (w.morning != null) morn.push({ label: D.md(k), value: w.morning });
+          if (w.bed != null) bed.push({ label: D.md(k), value: w.bed });
+        });
       }
       App.multiLineChart(root.querySelector("#wt-chart"), [
         { name: "🌅 晨起空腹", color: "#4f8fd1", data: morn },
         { name: "🌙 睡前", color: "#d96a9c", data: bed }
       ], { unit: "斤" });
-      root.querySelector("#wt-view-tag").textContent = wtView === "month" ? "月视图" : "周视图";
+      root.querySelector("#wt-view-tag").textContent = wtView === "month" ? "近1个月" : "近7天";
     }
     root.querySelector("#wt-save").onclick = () => {
       const mk = parseFloat(root.querySelector("#wt-morning").value);

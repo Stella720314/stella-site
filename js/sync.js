@@ -158,7 +158,7 @@
   function addTombstone(c, id, whole) {
     const t = getTombstones().slice();
     const exists = t.some((x) => x.c === c && (whole ? x.whole : x.id === id));
-    if (!exists) { t.push(whole ? { c, whole: true } : { c, id }); App.raw.set("__tombstones", t); }
+    if (!exists) { t.push(whole ? { c, whole: true, ts: Date.now() } : { c, id, ts: Date.now() }); App.raw.set("__tombstones", t); }
   }
 
   /* ---------------- 状态 ---------------- */
@@ -251,7 +251,11 @@
     await ensureSalt();
     const key = await deriveKey(passphrase, saltBytes);
     const cols = snapshotLocal();
-    const archive = { v: 1, updatedAt: Date.now(), deviceId, collections: cols, tombstones: getTombstones() };
+    // 清理 tombstones：只保留最近 30 天内的删除标记，避免云端 archive 无限增长，
+    // 同时保证多设备间近期删除仍能被识别。
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const recentTombstones = getTombstones().filter(t => (t.ts || 0) > cutoff);
+    const archive = { v: 1, updatedAt: Date.now(), deviceId, collections: cols, tombstones: recentTombstones };
     const payload = await encryptObj(archive, key);
     const envelope = { salt: b64(saltBytes), iv: payload.iv, ct: payload.ct };
     await apiPut(envelope);
@@ -259,16 +263,16 @@
     const meta = App.raw.get("__sync_meta", {}) || {};
     meta.salt = b64(saltBytes); meta.deviceId = deviceId;
     App.raw.set("__sync_meta", meta);
-    App.raw.set("__tombstones", []); // 云端已记录删除标记，本地可清空
+    App.raw.set("__tombstones", recentTombstones); // 本地与云端保持一致，避免重复上传
     lastSync = archive.updatedAt;
   }
 
   // 一次完整同步：先拉（取云端最新）→ 合并进本地 → 上传（全量合并结果）→ 本地清理
-  async function syncNow() {
+  async function syncNow(opts = {}) {
     if (!unlocked || syncing) return;
     syncing = true;
     try {
-      const cloud = await pull();
+      const cloud = opts.pushOnly ? null : await pull();
       if (cloud) await hydrateFromCloud(cloud);
       await push();
       if (App.retention) App.retention.run(); // 仅在本地修剪视图，云端不受影响
@@ -328,7 +332,6 @@
     App.raw.set("__sync_meta", { salt: b64(saltBytes), deviceId, updatedAt: Date.now() });
     hookStore();
     await syncNow();
-    App.rerenderTop && App.rerenderTop(); // 解锁后刷新页面以显示云端数据（回到顶部）
     App.toast("云同步已启用 ☁️", "☁️");
     updateStatus();
   }
@@ -350,7 +353,6 @@
     if (remember) { try { sessionStorage.setItem("stella:__pass", pass); } catch (e) {} }
     hookStore();
     await syncNow();
-    App.rerenderTop && App.rerenderTop(); // 解锁后刷新页面以显示云端数据（回到顶部）
     updateStatus();
     return true;
   }
@@ -394,7 +396,7 @@
     if (!el) return;
     const meta = App.raw.get("__sync_meta", null);
     if (!meta) { el.textContent = "未启用云同步（仅本地）"; return; }
-    if (!unlocked) { el.textContent = "已锁定，点「解锁并更新」"; return; }
+    if (!unlocked) { el.textContent = "云同步已启用，点「解锁并同步」"; return; }
     el.textContent = lastSync ? "已同步：" + new Date(lastSync).toLocaleString("zh-CN", { hour12: false }) : "已解锁，尚未同步";
   }
 
@@ -404,10 +406,10 @@
     const body = `
       <div id="sync-status" class="muted" style="font-size:12px;margin-bottom:12px"></div>
       ${meta ? `
-        <label class="field">加密口令（解锁以拉取云端数据）</label>
+        <label class="field">加密口令</label>
         <input class="input" type="password" name="pass" placeholder="输入你的加密口令">
         <label style="font-size:12px;color:var(--text-2);display:flex;align-items:center;gap:6px;margin-top:8px">
-          <input type="checkbox" name="remember"> 记住本标签页解锁（关闭标签页后失效，不落盘）
+          <input type="checkbox" name="remember" ${sessionStorage.getItem("stella:__pass") ? "checked" : ""}> 记住本标签页（关闭后失效，不落盘）
         </label>
       ` : `
         <p class="muted" style="font-size:12px;line-height:1.7;margin:0 0 10px">
@@ -420,14 +422,17 @@
         <input class="input" type="password" name="pass2" placeholder="再次输入">
       `}
       <div class="row" style="margin-top:14px;gap:8px;flex-wrap:wrap">
-        ${meta ? `<button class="btn primary sm" id="sync-go">${locked ? "解锁并更新" : "立即同步"}</button>` : `<button class="btn primary sm" id="sync-setup">启用云同步</button>`}
+        ${meta ? `
+          <button class="btn primary sm" id="sync-go">${locked ? "解锁并同步" : "立即同步"}</button>
+          <button class="btn sm" id="sync-push">仅推送本地到云端</button>
+        ` : `<button class="btn primary sm" id="sync-setup">启用云同步</button>`}
         <button class="btn sm" id="sync-export">导出备份</button>
         <label class="btn sm" style="cursor:pointer">导入备份<input type="file" id="sync-import" accept="application/json" style="display:none"></label>
         ${unlocked ? `<button class="btn sm ghost" id="sync-lock">锁定</button>` : ""}
       </div>
       <p class="muted" style="font-size:11px;margin-top:12px;line-height:1.6">
-        提示：明文导出文件包含全部隐私，请只保存在你自己的设备上。云端存储不计费、永久保留完整档案；
-        本地仍按「行车记录仪」规则只保留近期数据以减轻设备负担。
+        提示：明文导出文件包含全部隐私，请只保存在你自己的设备上。
+        删除的记录在同步时会被清理出云端；本地仍按「行车记录仪」规则只保留近期数据。
       </p>`;
     App.modal.open(meta ? "☁️ 云同步" : "☁️ 启用云同步", body, {
       okText: "关闭", cancel: false,
@@ -436,14 +441,31 @@
         const passEl = m.querySelector('[name="pass"]');
         if (passEl) setTimeout(() => passEl.focus(), 50);
         const go = m.querySelector("#sync-go");
-        if (go) go.onclick =async () => {
+        if (go) go.onclick = async () => {
+          const p = passEl.value; if (!p) { App.toast("请输入口令", "⚠️"); return; }
+          const remember = m.querySelector('[name="remember"]') && m.querySelector('[name="remember"]').checked;
+          if (locked) {
+            const ok = await unlock(p, remember);
+            if (ok) { App.toast("已解锁并同步 ☁️", "☁️"); App.modal.close(); }
+          } else {
+            // 已解锁：仅用这个口令做一次同步
+            const ok = await unlock(p, remember);
+            if (ok) { App.toast("已同步 ☁️", "☁️"); App.modal.close(); }
+          }
+        };
+        const pushBtn = m.querySelector("#sync-push");
+        if (pushBtn) pushBtn.onclick = async () => {
           const p = passEl.value; if (!p) { App.toast("请输入口令", "⚠️"); return; }
           const remember = m.querySelector('[name="remember"]') && m.querySelector('[name="remember"]').checked;
           const ok = await unlock(p, remember);
-          if (ok) { App.toast("已解锁并同步 ☁️", "☁️"); App.modal.close(); }
+          if (ok) {
+            await syncNow({ pushOnly: true });
+            App.toast("已推送本地数据到云端 ☁️", "☁️");
+            App.modal.close();
+          }
         };
         const setupBtn = m.querySelector("#sync-setup");
-        if (setupBtn) setupBtn.onclick =async () => {
+        if (setupBtn) setupBtn.onclick = async () => {
           const p = passEl.value, p2 = m.querySelector('[name="pass2"]').value;
           if (p.length < 6) { App.toast("口令至少 6 位", "⚠️"); return; }
           if (p !== p2) { App.toast("两次输入不一致", "⚠️"); return; }
@@ -467,12 +489,13 @@
       if (App.retention) App.retention.run();
       return;
     }
-    // 已启用：优先用「本标签页记住的口令」静默解锁；否则弹出解锁面板
+    // 已启用同步：仅在 sessionStorage 记住了口令时静默解锁并同步，
+    // 否则保持本地模式，不弹窗打扰用户；用户需要同步时手动点顶部 ☁️ 按钮。
     try {
       const remembered = sessionStorage.getItem("stella:__pass");
       if (remembered) { await unlock(remembered, false); return; }
     } catch (e) {}
-    openPanel();
+    // 不自动 openPanel：打开页面即可直接使用本地数据
   }
 
   App.Sync = { init, openPanel, syncNow, exportBackup, importBackup, isUnlocked: () => unlocked };
