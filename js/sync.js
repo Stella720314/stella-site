@@ -240,7 +240,13 @@
   // 把云端档案合并进本地（云端为完整档案，合并后本地包含全量）
   async function hydrateFromCloud(archive) {
     const localCols = snapshotLocal();
-    const merged = mergeCollections(localCols, archive.collections || {}, archive.tombstones || []);
+    // 关键：合并时必须同时采用「本地 + 云端」的删除标记。
+    // 否则本地刚删除（标记只存在于本地 __tombstones、尚未 push 到云端）的记录，
+    // 会被云端档案里仍存在的旧数据重新拉回本地 —— 表现为「删了又回来」的幽灵事件。
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const localTomb = getTombstones().filter(t => (t.ts || 0) > cutoff);
+    const cloudTomb = archive.tombstones || [];
+    const merged = mergeCollections(localCols, archive.collections || {}, [...cloudTomb, ...localTomb]);
     applyToLocal(merged);
     // 纪念日事件是衍生数据：云端合并后，必须根据 canonical 列表（anniversary_birthday/special）重新生成 events，
     // 否则云端残留的过期 events 会在首页迷你日历上继续显示橙色标记。
