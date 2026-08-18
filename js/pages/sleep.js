@@ -67,12 +67,17 @@
     return now.getHours() < 12 ? D.addDays(today, -1) : today;
   }
 
-  // 自动打卡：若昨天在保留窗口内且还没有记录，标为熬夜（凌晨分界线）
+  // 自动打卡：扫描近 3 个月保留窗口内、从昨天往前的所有空档，统一标为熬夜。
+  // 这样即使连续几天没打开页面，中间的空档也能一次性补上。
   function autoCheck() {
-    const yesterday = D.addDays(D.today(), -1);
-    if (yesterday < sleepCutoff()) return;
-    if (!S.val("sleep:" + yesterday, null)) {
-      S.setVal("sleep:" + yesterday, { time: "00:00", late: true, auto: true });
+    const today = D.today();
+    const start = sleepCutoff();
+    let dk = D.addDays(today, -1); // 从昨天开始往前补
+    while (dk >= start) {
+      if (!S.val("sleep:" + dk, null)) {
+        S.setVal("sleep:" + dk, { time: "00:00", late: true, auto: true });
+      }
+      dk = D.addDays(dk, -1);
     }
   }
 
