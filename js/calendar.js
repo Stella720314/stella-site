@@ -42,18 +42,28 @@
     const built = buildEvent(items);
     if (built) a[k] = built; else delete a[k];
     App.raw.set("events", a);
+    // 重新添加某来源时，清除对应的「日期+来源」删除标记，避免云端合并误把新项过滤掉
+    if (built && v._src && App.Sync && App.Sync.clearRemoved) App.Sync.clearRemoved("events", k, v._src);
   }
 
   function eventRemoveSrc(k, src) {
     const a = eventsAll(); const ev = a[k]; if (!ev) return;
     if (Array.isArray(ev.items)) {
       const filtered = ev.items.filter(i => i._src !== src && (src !== "manual" || i._src));
-      if (filtered.length === 0) delete a[k];
-      else { ev.items = filtered; ev.text = filtered.map(i => i.text).join("\n"); ev.emoji = filtered[0].emoji || ""; }
+      if (filtered.length === 0) {
+        delete a[k];
+        App.raw.set("events", a);
+        if (App.Sync && App.Sync.markRemoved) App.Sync.markRemoved("events", k, null); // 整日期删除
+      } else {
+        ev.items = filtered; ev.text = filtered.map(i => i.text).join("\n"); ev.emoji = filtered[0].emoji || "";
+        App.raw.set("events", a);
+        if (App.Sync && App.Sync.markRemoved) App.Sync.markRemoved("events", k, src); // 仅移除该来源
+      }
     } else if (ev._src === src || (!ev._src && src === "manual")) {
       delete a[k];
+      App.raw.set("events", a);
+      if (App.Sync && App.Sync.markRemoved) App.Sync.markRemoved("events", k, null);
     }
-    App.raw.set("events", a);
   }
 
   // 当某日没有手动安排时，自动把未来就医计划整理进详情

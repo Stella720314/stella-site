@@ -38,8 +38,13 @@
   }
 
   // 合并两个「集合值」：数组/对象/标量分别处理
-  function mergeValue(local, cloud, isTomb) {
-    if (local === undefined) return cloud;
+  // path：当前集合键路径（如 "events"、"events::2026-08-20"），用于日期+来源维度的 tombstone 匹配
+  function mergeValue(local, cloud, isTomb, path) {
+    // 本地显式不存在（键被整删）：若对应「整日期」已被 tombstone，则不把云端旧数据拉回
+    if (local === undefined) {
+      if (path && isTomb(path)) return undefined;
+      return cloud;
+    }
     if (cloud === undefined) return local;
     // 数组：列表型（元素带 id / _src）或标量表（字符串数组，如标签）
     if (Array.isArray(local) && Array.isArray(cloud)) {
@@ -50,7 +55,8 @@
           const id = idOf(x);
           if (id != null) map.set(id, x); // 本地在后，后者覆盖前者
         }
-        return [...map.values()].filter((x) => !isTomb(idOf(x)));
+        const full = path ? path + "::" : "";
+        return [...map.values()].filter((x) => !isTomb(full + idOf(x)));
       }
       // 标量表：集合并集（去重）
       const set = new Set();
@@ -66,7 +72,12 @@
         && !Array.isArray(local) && !Array.isArray(cloud)) {
       const out = {};
       const sub = new Set([...Object.keys(local), ...Object.keys(cloud)]);
-      for (const sk of sub) out[sk] = mergeValue(local[sk], cloud[sk], isTomb);
+      for (const sk of sub) {
+        // items 数组是 events 的元素容器，其 id 维度应挂在「日期」层级（path），而不是 items 子键
+        const childPath = sk === "items" ? path : (path ? path + "::" + sk : sk);
+        const v = mergeValue(local[sk], cloud[sk], isTomb, childPath);
+        if (v !== undefined) out[sk] = v; // 被 tombstone 拦截的日期返回 undefined，不应保留该键
+      }
       return out;
     }
     // 标量（字符串/数字/布尔，如 theme、单个设置）→ 本地优先（最后写入获胜）
@@ -74,7 +85,13 @@
   }
 
   function mergeCollections(localCols, cloudCols, tombstones) {
-    const tomb = new Set((tombstones || []).map((t) => t.c + "::" + (t.id != null ? t.id : "")));
+    const tomb = new Set();
+    for (const t of (tombstones || [])) {
+      if (t.whole) tomb.add(t.c);                                   // 整集合删除
+      else if (t.dateWhole) tomb.add(`${t.c}::${t.id}`);            // 整日期删除（如某天所有手动安排）
+      else if (t.sub != null) tomb.add(`${t.c}::${t.id}::${t.sub}`);// 日期+来源删除（如 events::日期::manual）
+      else tomb.add(`${t.c}::${t.id}`);
+    }
     const out = {};
     const keys = new Set([...Object.keys(localCols || {}), ...Object.keys(cloudCols || {})]);
     for (const k of keys) {
@@ -83,7 +100,8 @@
       out[k] = mergeValue(
         localCols ? localCols[k] : undefined,
         cloudCols ? cloudCols[k] : undefined,
-        (id) => tomb.has(k + "::" + (id != null ? id : ""))
+        (full) => tomb.has(full),
+        k
       );
     }
     return out;
@@ -153,12 +171,47 @@
     }
   }
 
-  /* ---------------- tombstone（删除标记） ---------------- */
+  /* ---------------- tombstone（删除标记） ----------------
+   * 维度：
+   *   whole:     整集合删除（来自 R.remove）
+   *   dateWhole: 整日期删除（events 某天所有来源被清空，来自 calendar）
+   *   sub:       日期+来源删除（events::日期::manual / medical / anniversary）
+   */
   function getTombstones() { return App.raw.get("__tombstones", []); }
-  function addTombstone(c, id, whole) {
+  function addTombstone(c, id, whole, sub) {
     const t = getTombstones().slice();
-    const exists = t.some((x) => x.c === c && (whole ? x.whole : x.id === id));
-    if (!exists) { t.push(whole ? { c, whole: true, ts: Date.now() } : { c, id, ts: Date.now() }); App.raw.set("__tombstones", t); }
+    const exists = t.some((x) => {
+      if (whole) return x.whole && x.c === c;
+      if (sub != null) return !x.whole && x.c === c && x.id === id && x.sub === sub;
+      return !x.whole && x.c === c && x.id === id && x.sub == null;
+    });
+    if (!exists) {
+      if (whole) t.push({ c, whole: true, ts: Date.now() });
+      else if (sub != null) t.push({ c, id, sub, ts: Date.now() });
+      else t.push({ c, id, ts: Date.now() });
+      App.raw.set("__tombstones", t);
+    }
+  }
+  // 标记某日期某来源已删除（sub 为 null 表示整日期删除）
+  function markRemoved(c, id, sub) {
+    if (sub == null) {
+      const t = getTombstones().slice();
+      if (!t.some((x) => !x.whole && x.c === c && x.id === id && x.dateWhole)) {
+        t.push({ c, id, dateWhole: true, ts: Date.now() });
+        App.raw.set("__tombstones", t);
+      }
+    } else {
+      addTombstone(c, id, false, sub);
+    }
+  }
+  // 清除某日期某来源的删除标记（重新添加时调用，避免云端合并误过滤新项）
+  function clearRemoved(c, id, sub) {
+    const t = getTombstones().slice();
+    const next = t.filter((x) => {
+      if (sub == null) return !(x.c === c && x.id === id && x.dateWhole);
+      return !(x.c === c && x.id === id && x.sub === sub);
+    });
+    App.raw.set("__tombstones", next);
   }
 
   /* ---------------- 状态 ---------------- */
@@ -504,5 +557,5 @@
     // 不自动 openPanel：打开页面即可直接使用本地数据
   }
 
-  App.Sync = { init, openPanel, syncNow, exportBackup, importBackup, isUnlocked: () => unlocked };
+  App.Sync = { init, openPanel, syncNow, exportBackup, importBackup, isUnlocked: () => unlocked, markRemoved, clearRemoved };
 })();
